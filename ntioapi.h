@@ -3460,6 +3460,7 @@ typedef struct _FILE_IO_COMPLETION_INFORMATION
  * \param[in, optional] Timeout Optional pointer to a timeout value.
  * \param[in] Alertable Whether the wait is alertable.
  * \return NTSTATUS Successful or errant status.
+ * \remarks If Count > 16, allocates temp kernel buffer (ExAllocatePool2) and caps fallback behavior if allocation fails.
  * \sa https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiet-getqueuedcompletionstatusex
  */
 _Kernel_entry_
@@ -3481,12 +3482,12 @@ NtRemoveIoCompletionEx(
 
 #if (PHNT_VERSION >= PHNT_WINDOWS_8)
 
-#ifndef IO_WAIT_COMPLETION_PACKET_QUERY_STATE
-#define IO_WAIT_COMPLETION_PACKET_QUERY_STATE 0x0001
+#ifndef WAIT_COMPLETION_PACKET_SET_STATE
+#define WAIT_COMPLETION_PACKET_SET_STATE 0x0001
 #endif
 
-#ifndef IO_WAIT_COMPLETION_PACKET_ALL_ACCESS
-#define IO_WAIT_COMPLETION_PACKET_ALL_ACCESS (IO_WAIT_COMPLETION_PACKET_QUERY_STATE | STANDARD_RIGHTS_REQUIRED)
+#ifndef WAIT_COMPLETION_PACKET_ALL_ACCESS
+#define WAIT_COMPLETION_PACKET_ALL_ACCESS (WAIT_COMPLETION_PACKET_SET_STATE | STANDARD_RIGHTS_REQUIRED)
 #endif
 
 /**
