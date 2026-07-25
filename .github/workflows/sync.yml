@@ -1,0 +1,138 @@
+name: sync
+
+# Mirrors phnt/include from System Informer to the repo root.
+#
+#   upstream ──●──●──●──●   replayed upstream commits, append-only
+#               \      \
+#   master  ●────●──────●   README, LICENSE, .github/ + sync merges
+#
+# `upstream` is only ever appended to (see scripts/replay-upstream.sh), so every
+# push here is a fast-forward and GITHUB_TOKEN is sufficient -- no PAT, no deploy
+# key, and nothing can delete this workflow file the way a force-push would.
+#
+# Do not "simplify" this by re-deriving the subtree each run with filter-repo and
+# pushing that: a fresh filter never contains the overlay commits (README,
+# LICENSE, this file), so the push is not a fast-forward, which is the only
+# reason the old cron script force-pushed. It also assumes filtering is
+# deterministic, and here it demonstrably was not -- the mirror as filtered in
+# Feb 2024 and in Jul 2026 share a merge-base at 6766d7a (2021-07-25) and diverge
+# after it, for content that is identical.
+#
+# The headers are flattened to the repo root. Do not move them into include/;
+# that breaks every consumer.
+#
+# `upstream` is pushed even when the compile gate fails: it is a faithful mirror,
+# it carries the resume state, and holding it back would strand the next run.
+# Only the merge into `master` is gated, so a broken upstream commit parks
+# `master` until a later upstream commit fixes it, then both land together.
+
+on:
+  schedule:
+    # Twice daily. A run with no upstream changes is a no-op, so the cost of the
+    # extra run is ~10s and it doubles the chance of recovering from a red gate.
+    # Note: GitHub disables scheduled workflows after 60 days of repository
+    # inactivity. Pushing `upstream` on every sync keeps the repo active.
+    - cron: '17 3,15 * * *'
+  workflow_dispatch:
+
+concurrency:
+  # Two syncs racing would both try to fast-forward the same branch.
+  group: sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    outputs:
+      pending: ${{ steps.state.outputs.pending }}
+      tip: ${{ steps.state.outputs.tip }}
+      sha: ${{ steps.replay.outputs.upstream_sha }}
+      count: ${{ steps.replay.outputs.count }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Replay walks back to the recorded sync point, which can be
+          # arbitrarily far behind; a shallow clone would break it.
+          fetch-depth: 0
+
+      - name: Check the upstream branch exists
+        run: |
+          if ! git rev-parse -q --verify refs/remotes/origin/upstream >/dev/null; then
+            echo "::error::No 'upstream' branch. Run .github/scripts/bootstrap-upstream.sh once to create it."
+            exit 1
+          fi
+          git branch -f upstream origin/upstream
+
+      - name: Replay new upstream commits
+        id: replay
+        run: .github/scripts/replay-upstream.sh
+
+      - name: Push upstream
+        run: git push origin upstream:upstream
+
+      - name: Determine whether master needs the merge
+        id: state
+        run: |
+          tip=$(git rev-parse upstream)
+          echo "tip=$tip" >>"$GITHUB_OUTPUT"
+          # Gate on "master is behind upstream", not on "this run replayed
+          # something". That also retries a merge that a previous run's failed
+          # gate (or a flaky runner) left outstanding.
+          if git merge-base --is-ancestor "$tip" origin/master; then
+            echo "pending=false" >>"$GITHUB_OUTPUT"
+            echo "master is up to date with upstream"
+          else
+            echo "pending=true" >>"$GITHUB_OUTPUT"
+            echo "master is behind upstream ($(git rev-list --count origin/master..upstream) commit(s))"
+          fi
+
+  validate:
+    needs: replay
+    if: needs.replay.outputs.pending == 'true'
+    runs-on: windows-latest
+    strategy:
+      # Report every architecture, not just the first to break.
+      fail-fast: false
+      matrix:
+        arch: [x64, x86]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The exact tree that would land on master. master only adds README,
+          # LICENSE and .github/, none of which affect the compile.
+          ref: ${{ needs.replay.outputs.tip }}
+
+      # Each step walks all 29 PHNT_VERSION values as both C and C++. Splitting
+      # those into matrix cells would pay ~50s of runner startup per ~0.6s
+      # compile; the arch split above is the level worth parallelising.
+      - name: cl
+        shell: cmd
+        run: .github\scripts\compile-matrix.cmd . ${{ matrix.arch }} cl
+
+      - name: clang-cl
+        shell: cmd
+        run: .github\scripts\compile-matrix.cmd . ${{ matrix.arch }} clang-cl
+
+  merge:
+    needs: [replay, validate]
+    if: needs.replay.outputs.pending == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Merge upstream into master
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-ff origin/upstream \
+            -m "sync: phnt/include @ ${SHA:0:12}" \
+            -m "Upstream: https://github.com/winsiderss/systeminformer/commit/${SHA}"
+          git push origin master
+        env:
+          SHA: ${{ needs.replay.outputs.sha }}

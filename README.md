@@ -1,7 +1,7 @@
 ## Information
 
-This is an unofficial standalone version of the [Process Hacker](https://github.com/processhacker/processhacker) Native API headers (phnt). The headers are directly pulled from Process Hacker master branch every night and may contain untested code.
-If you are looking for a stable release check out the [official phnt repository](https://github.com/processhacker/phnt)
+This is an unofficial standalone version of the [System Informer](https://github.com/winsiderss/systeminformer) (formerly Process Hacker) Native API headers (phnt). The headers are directly pulled from the System Informer master branch every night and may contain untested code.
+If you are looking for a stable release check out the [official phnt repository](https://github.com/winsiderss/phnt)
 
 ***
 
@@ -18,15 +18,22 @@ These header files are designed to be used by user-mode programs. Instead of `#i
 #include <phnt.h>
 ```
 
-at the top of your program. The first line provides access to the Win32 API as well as the `NTSTATUS` values. The second line provides access to the entire Native API. By default, only definitions present in Windows XP are included into your program. To change this, use one of the following:
+at the top of your program. The first line provides access to the Win32 API as well as the `NTSTATUS` values. The second line provides access to the entire Native API.
 
+By default every definition is included, equivalent to:
+
+```c
+#define PHNT_VERSION PHNT_WINDOWS_NEW
 ```
-#define PHNT_VERSION PHNT_WINXP // Windows XP
-#define PHNT_VERSION PHNT_WS03 // Windows Server 2003
-#define PHNT_VERSION PHNT_VISTA // Windows Vista
-#define PHNT_VERSION PHNT_WIN7 // Windows 7
-#define PHNT_VERSION PHNT_WIN8 // Windows 8
-#define PHNT_VERSION PHNT_WINBLUE // Windows 8.1
-#define PHNT_VERSION PHNT_THRESHOLD // Windows 10
+
+To restrict the definitions to those present in a particular Windows release, define `PHNT_VERSION` before including `phnt.h`:
+
+```c
+#define PHNT_VERSION PHNT_WINDOWS_VISTA   // Windows Vista
+#define PHNT_VERSION PHNT_WINDOWS_7       // Windows 7
+#define PHNT_VERSION PHNT_WINDOWS_10      // Windows 10, version 1507
+#define PHNT_VERSION PHNT_WINDOWS_11_24H2 // Windows 11, version 24H2
 ```
+
+See the `PHNT_WINDOWS_*` list at the top of [`phnt.h`](phnt.h) for the full set.
 

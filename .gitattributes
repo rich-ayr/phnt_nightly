@@ -1,0 +1,9 @@
+# CI scripts only. The headers are deliberately left alone: they are mirrored
+# verbatim from upstream, and normalising them would change what every existing
+# consumer checks out.
+
+# CRLF here fails on the Linux runner with "\r: command not found".
+*.sh  text eol=lf
+
+# Only ever run by cmd.exe.
+*.cmd text eol=crlf
