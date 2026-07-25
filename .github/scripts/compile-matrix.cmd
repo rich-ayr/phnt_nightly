@@ -22,7 +22,17 @@ rem           compiler     cl (default) | clang-cl
 setlocal enabledelayedexpansion
 
 set "HDRS=%~1"
-if "%HDRS%"=="" for %%i in ("%~dp0..\..") do set "HDRS=%%~fi"
+if "%HDRS%"=="" set "HDRS=%~dp0..\.."
+rem Resolve to a full path; the caller may pass something relative to its own cwd.
+for %%i in ("%HDRS%") do set "HDRS=%%~fi"
+
+rem Check the directory before compiling. A wrong path otherwise shows up as 58
+rem identical "cannot open include file" failures, which reads like the headers
+rem broke rather than the path being wrong.
+if not exist "%HDRS%\phnt.h" (
+  echo ERROR: no phnt.h in "%HDRS%" -- wrong include directory?
+  exit /b 2
+)
 
 set "ARCH=%~2"
 if "%ARCH%"=="" set "ARCH=x64"

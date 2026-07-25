@@ -99,22 +99,28 @@ jobs:
       matrix:
         arch: [x64, x86]
     steps:
+      # Two checkouts. `upstream` is a pure headers subtree with no .github/ of
+      # its own, so it cannot supply the tooling that validates it: the scripts
+      # come from here, the headers under test go in a subdirectory.
+      - uses: actions/checkout@v5
+
       - uses: actions/checkout@v5
         with:
           # The exact tree that would land on master. master only adds README,
           # LICENSE and .github/, none of which affect the compile.
           ref: ${{ needs.replay.outputs.tip }}
+          path: headers
 
       # Each step walks all 29 PHNT_VERSION values as both C and C++. Splitting
       # those into matrix cells would pay ~50s of runner startup per ~0.6s
       # compile; the arch split above is the level worth parallelising.
       - name: cl
         shell: cmd
-        run: .github\scripts\compile-matrix.cmd . ${{ matrix.arch }} cl
+        run: .github\scripts\compile-matrix.cmd headers ${{ matrix.arch }} cl
 
       - name: clang-cl
         shell: cmd
-        run: .github\scripts\compile-matrix.cmd . ${{ matrix.arch }} clang-cl
+        run: .github\scripts\compile-matrix.cmd headers ${{ matrix.arch }} clang-cl
 
   merge:
     needs: [replay, validate]
