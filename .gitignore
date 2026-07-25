@@ -1,0 +1,14 @@
+# Agent instruction & handoff files
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+AGENTS.override.md
+GEMINI.md
+HANDOFF.md
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
