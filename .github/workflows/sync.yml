@@ -31,7 +31,9 @@ on:
     # Twice daily. A run with no upstream changes is a no-op, so the cost of the
     # extra run is ~10s and it doubles the chance of recovering from a red gate.
     # Note: GitHub disables scheduled workflows after 60 days of repository
-    # inactivity. Pushing `upstream` on every sync keeps the repo active.
+    # inactivity, and only commits reset that timer. A no-op sync pushes
+    # nothing, so a quiet upstream does not keep the schedule alive. GitHub
+    # emails a warning first, to whoever last modified this file.
     - cron: '17 3,15 * * *'
   workflow_dispatch:
 
