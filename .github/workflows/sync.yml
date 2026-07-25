@@ -126,6 +126,9 @@ jobs:
     needs: [replay, validate]
     if: needs.replay.outputs.pending == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the merge
+      statuses: write # badge the merge commit with this run
     steps:
       - uses: actions/checkout@v5
         with:
@@ -142,3 +145,18 @@ jobs:
           git push origin master
         env:
           SHA: ${{ needs.replay.outputs.sha }}
+
+      # Pushes made with GITHUB_TOKEN do not trigger workflows, so nothing ever
+      # runs against the merge commit and it would otherwise carry no check at
+      # all. Post a status explicitly so the commit shows a tick linking here.
+      - name: Badge the merge commit with this run
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" \
+            -f state=success \
+            -f context='sync' \
+            -f description="phnt/include @ ${SHA:0:12}, ${COUNT} commit(s)" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.replay.outputs.sha }}
+          COUNT: ${{ needs.replay.outputs.count }}
