@@ -15873,10 +15873,73 @@ GetDCompositionHwndBitmap(
 
 // rev
 /**
+ * The WINDOWCOMPOSITIONATTRIB enumeration identifies a DWM window composition attribute.
+ *
+ * Attributes marked "q" are queried with GetWindowCompositionAttribute, attributes marked "s" are set
+ * with SetWindowCompositionAttribute. Attributes 1, 5, 8, 12, 14, 18, 21 and 34 cannot be set.
+ */
+typedef enum _WINDOWCOMPOSITIONATTRIB
+{
+    WCA_UNDEFINED = 0,
+    WCA_NCRENDERING_ENABLED = 1,                // q: BOOL
+    WCA_NCRENDERING_POLICY = 2,                 // s: ULONG // DWMNCRENDERINGPOLICY
+    WCA_TRANSITIONS_FORCEDISABLED = 3,          // s: BOOL
+    WCA_ALLOW_NCPAINT = 4,                      // s: BOOL
+    WCA_CAPTION_BUTTON_BOUNDS = 5,              // q: RECT
+    WCA_NONCLIENT_RTL_LAYOUT = 6,               // s: BOOL
+    WCA_FORCE_ICONIC_REPRESENTATION = 7,        // s: BOOL
+    WCA_EXTENDED_FRAME_BOUNDS = 8,              // q: RECT
+    WCA_HAS_ICONIC_BITMAP = 9,                  // q: BOOL
+    WCA_THEME_ATTRIBUTES = 10,                  // s: ULONG
+    WCA_NCRENDERING_EXILED = 11,                // q: BOOL
+    WCA_NCADORNMENTINFO = 12,                   // q:
+    WCA_EXCLUDED_FROM_LIVEPREVIEW = 13,         // s: BOOL
+    WCA_VIDEO_OVERLAY_ACTIVE = 14,              // q: BOOL
+    WCA_FORCE_ACTIVEWINDOW_APPEARANCE = 15,     // s: BOOL
+    WCA_DISALLOW_PEEK = 16,                     // s: BOOL
+    WCA_CLOAK = 17,                             // s: ULONG
+    WCA_CLOAKED = 18,                           // q: ULONG // DWM_CLOAKED_*
+    WCA_ACCENT_POLICY = 19,                     // s: ACCENT_POLICY // since WIN11
+    WCA_FREEZE_REPRESENTATION = 20,             // s: BOOL
+    WCA_EVER_UNCLOAKED = 21,                    // q: BOOL
+    WCA_VISUAL_OWNER = 22,                      // s: HANDLE
+    WCA_HOLOGRAPHIC = 23,                       // q: BOOL
+    WCA_EXCLUDED_FROM_DDA = 24,                 // s: BOOL
+    WCA_PASSIVEUPDATEMODE = 25,                 // s: BOOL
+    WCA_USEDARKMODECOLORS = 26,                 // s: BOOL
+    WCA_CORNER_STYLE = 27,                      // s: ULONG // DWM_WINDOW_CORNER_PREFERENCE
+    WCA_PART_COLOR = 28,                        // s: { ULONG Part; COLORREF Color } // Part 0-2
+    WCA_DISABLE_MOVESIZE_FEEDBACK = 29,         // s: BOOL
+    WCA_SYSTEMBACKDROP_TYPE = 30,               // s: ULONG // DWM_SYSTEMBACKDROP_TYPE
+    WCA_SET_TAGGED_WINDOW_RECT = 31,            // s: RECT
+    WCA_CLEAR_TAGGED_WINDOW_RECT = 32,          // s: RECT
+    WCA_REMOTEAPP_POLICY = 33,                  // s: ULONG // since 24H2
+    WCA_HAS_ACCENT_POLICY = 34,                 // q: BOOL
+    WCA_REDIRECTIONBITMAP_FILL_COLOR = 35,      // s: ULONG // COLORREF
+    WCA_REDIRECTIONBITMAP_ALPHA = 36,           // s: BOOL
+    WCA_BORDER_MARGINS = 37,                    // s: USHORT[4] // each below 0x8000, all zero or all non-zero
+    WCA_LAST
+} WINDOWCOMPOSITIONATTRIB;
+
+// rev
+/**
+ * The WINDOWCOMPOSITIONATTRIBUTEDATA structure is the descriptor passed to the Get/SetWindowCompositionAttribute
+ * routines (24 bytes on x64). It describes the attribute and the caller buffer, not the attribute payload.
+ */
+typedef struct _WINDOWCOMPOSITIONATTRIBUTEDATA
+{
+    WINDOWCOMPOSITIONATTRIB Attribute;  // The attribute to query or set.
+    PVOID Data;                         // The input (set) or output (get) buffer.
+    SIZE_T Length;                      // The size of the buffer in bytes (must be at least the attribute minimum).
+} WINDOWCOMPOSITIONATTRIBUTEDATA, *PWINDOWCOMPOSITIONATTRIBUTEDATA;
+
+// rev
+/**
  * The GetWindowCompositionAttribute routine retrieves a DWM window composition attribute.
  *
  * \param WindowHandle Handle to the target window.
- * \param AttributeData Pointer to the composition attribute data buffer.
+ * \param AttributeData A pointer to a WINDOWCOMPOSITIONATTRIBUTEDATA descriptor describing the attribute
+ * and its output buffer.
  * \returns TRUE on success, FALSE otherwise.
  */
 NTSYSAPI
@@ -15884,25 +15947,7 @@ BOOL
 NTAPI
 GetWindowCompositionAttribute(
     _In_ HWND WindowHandle,
-    _Inout_ PVOID AttributeData
-    );
-
-// rev
-/**
- * The GetWindowCompositionInfo routine retrieves Desktop Window Manager (DWM) composition
- * attributes for a window.
- *
- * \param WindowHandle Handle to the target window.
- * \param CompositionInfo Pointer to a structure receiving the window's composition information.
- * \returns LOGICAL Non-zero on success, zero otherwise.
- * \remarks Forwards to the NtUserGetWindowCompositionInfo system call.
- */
-NTSYSAPI
-LOGICAL
-NTAPI
-GetWindowCompositionInfo(
-    _In_ HWND WindowHandle,
-    _Out_ PVOID CompositionInfo
+    _Inout_ PWINDOWCOMPOSITIONATTRIBUTEDATA AttributeData
     );
 
 // rev
@@ -17618,7 +17663,8 @@ NtUserGetResizeDCompositionSynchronizationObject(
  * Returns a Boolean success value, not NTSTATUS (0x1401418cc-0x1401418d2).
  *
  * \param WindowHandle Handle to the window.
- * \param AttributeData The attribute data argument.
+ * \param AttributeData A pointer to a WINDOWCOMPOSITIONATTRIBUTEDATA descriptor describing the attribute
+ * and its output buffer.
  *
  * \returns The BOOL result described above.
  */
@@ -17628,25 +17674,7 @@ BOOL
 NTAPI
 NtUserGetWindowCompositionAttribute(
     _In_ HWND WindowHandle,
-    _In_ PVOID AttributeData
-    );
-
-// rev
-/**
- * The NtUserGetWindowCompositionInfo routine retrieves Desktop Window Manager (DWM) composition
- * attributes for a window.
- *
- * \param Param1 Unconfirmed window handle parameter.
- * \param Param2 Pointer to a structure receiving window composition information.
- * \returns LOGICAL Non-zero on success, zero otherwise.
- */
-_Kernel_entry_
-NTSYSCALLAPI
-LOGICAL
-NTAPI
-NtUserGetWindowCompositionInfo(
-    _In_ ULONG_PTR Param1,
-    _In_ ULONG_PTR Param2
+    _In_ PWINDOWCOMPOSITIONATTRIBUTEDATA AttributeData
     );
 
 // rev
@@ -17654,16 +17682,19 @@ NtUserGetWindowCompositionInfo(
  * The SetWindowCompositionAttribute routine sets a DWM window composition attribute.
  *
  * \param WindowHandle Handle to the target window.
- * \param AttributeData Pointer to the composition attribute data buffer.
+ * \param AttributeData A pointer to a WINDOWCOMPOSITIONATTRIBUTEDATA descriptor describing the attribute
+ * and its input buffer.
  * \returns TRUE on success, FALSE otherwise.
- * \remarks Forwards to the NtUserSetWindowCompositionAttribute system call.
+ * \remarks Pure forwarder (user32 export 2391) that jumps to win32u!NtUserSetWindowCompositionAttribute
+ * with no client-side validation. Unlike GetWindowCompositionAttribute, it does not check the
+ * attribute range or buffer size in user mode.
  */
 NTSYSAPI
 BOOL
 NTAPI
 SetWindowCompositionAttribute(
     _In_ HWND WindowHandle,
-    _In_ PVOID AttributeData
+    _In_ PWINDOWCOMPOSITIONATTRIBUTEDATA AttributeData
     );
 
 // rev
@@ -17671,8 +17702,27 @@ SetWindowCompositionAttribute(
  * The NtUserSetWindowCompositionAttribute routine sets Desktop Window Manager (DWM) composition
  * attributes for a window.
  *
+ * win32kfull: 0x140214030 (win32u syscall 0x1592) copies a 24-byte descriptor from argument 2.
+ * The descriptor contains the attribute (ULONG at +0), input buffer pointer (+8),
+ * and buffer size (SIZE_T at +16) on x64. AttributeData is the descriptor, not the payload.
+ * The payload buffer is probed for read and the per-attribute minimum number of bytes is copied.
+ *
+ * The attribute must be in the range 1 to 37 and the buffer size must be at least the minimum for
+ * the attribute, otherwise the call fails with STATUS_INVALID_PARAMETER or STATUS_BUFFER_TOO_SMALL.
+ * Minimum sizes are 4 bytes except: 16 (5, 8, 19, 31), 20 (12), 8 (22, 28, 37) and 0 (32).
+ * Attributes 1, 5, 8, 12, 14, 18, 21 and 34 are not settable (STATUS_INVALID_PARAMETER).
+ * Attribute 28 takes { ULONG Part (0-2); ULONG Color } and attribute 37 takes four USHORT margins,
+ * each below 0x8000, that are either all zero (clear) or all non-zero.
+ * The window must be a top-level window (STATUS_INVALID_HANDLE otherwise), except for attributes 17, 20 and 36
+ * which also accept layered child windows. Attributes 17, 23 and 37 return STATUS_ACCESS_DENIED
+ * when the caller does not own the window.
+ *
+ * Returns a Boolean success value, not NTSTATUS. On failure the status is converted with
+ * RtlNtStatusToDosError and stored as the last error.
+ *
  * \param WindowHandle A handle to the window to configure.
- * \param AttributeData A pointer to a WINDOWCOMPOSITIONATTRIBDATA structure containing the attribute to set.
+ * \param AttributeData A pointer to a WINDOWCOMPOSITIONATTRIBUTEDATA descriptor describing the attribute
+ * and its input buffer.
  * \returns LOGICAL Non-zero on success, zero otherwise.
  */
 _Kernel_entry_
@@ -17681,7 +17731,7 @@ LOGICAL
 NTAPI
 NtUserSetWindowCompositionAttribute(
     _In_ HWND WindowHandle,
-    _In_ PVOID AttributeData
+    _In_ PWINDOWCOMPOSITIONATTRIBUTEDATA AttributeData
     );
 
 // rev
@@ -26519,11 +26569,16 @@ UnloadNetworkFonts(
 
 // rev
 /**
- * bCreateDCW
- *
- * Creates a client DC through hdcCreateDCW after recognizing DISPLAY device names and capturing
- * counted device/output strings. Six arguments; the final two 32-bit values are forwarded.
+ * The bCreateDCW routine creates a client DC through hdcCreateDCW after recognizing DISPLAY device names and
+ * capturing counted device/output strings. Six arguments; the final two 32-bit values are forwarded.
  * CreationFlags is descriptive, not a reconstructed flag enumeration.
+ *
+ * \param Driver Driver name.
+ * \param Device Device name.
+ * \param Output Output destination.
+ * \param DeviceMode Device mode settings.
+ * \param CreationMode DC creation mode.
+ * \param CreationFlags DC creation flags.
  */
 NTSYSAPI
 HDC
@@ -26553,11 +26608,12 @@ bDeleteLDC(
 
 // rev
 /**
- * bInitSystemAndFontsDirectoriesW
+ * The bInitSystemAndFontsDirectoriesW routine initializes path pointers when *SystemDirectory is NULL. Both
+ * strings occupy one LocalAlloc block; FontsDirectory is an interior pointer. Free only SystemDirectory with
+ * LocalFree. A non- NULL existing base causes no-op success.
  *
- * Initializes path pointers when *SystemDirectory is NULL. Both strings occupy one LocalAlloc
- * block; FontsDirectory is an interior pointer. Free only SystemDirectory with LocalFree. A non-
- * NULL existing base causes no-op success.
+ * \param SystemDirectory Receives the system directory string.
+ * \param FontsDirectory Receives the fonts directory string.
  */
 NTSYSAPI
 BOOL
@@ -26907,10 +26963,10 @@ BuildReasonArray(
 
 // rev
 /**
- * CheckBannedOneCoreTransformApi
+ * The CheckBannedOneCoreTransformApi routine is a compatibility hook that returns immediately without a
+ * Boolean result. x86 consumes one 4-byte unused argument.
  *
- * Compatibility hook that returns immediately without a Boolean result. x86 consumes one 4-byte
- * unused argument.
+ * \param Unused Historical argument ignored by this routine.
  */
 NTSYSAPI
 VOID
@@ -26982,10 +27038,14 @@ ClientThreadSetup(
 
 // rev
 /**
- * ConfigureOPMProtectedOutput
+ * The ConfigureOPMProtectedOutput routine is a direct client thunk to NtGdiConfigureOPMProtectedOutput.
+ * Argument order and result are forwarded unchanged. Kernel-side behavior is not independently implemented
+ * by this client wrapper.
  *
- * Direct client thunk to NtGdiConfigureOPMProtectedOutput. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param ProtectedOutput Protected output handle.
+ * \param Parameters Parameters forwarded to the native routine.
+ * \param AdditionalParametersSize Size of AdditionalParameters in bytes.
+ * \param AdditionalParameters Additional OPM parameters.
  */
 NTSYSAPI
 NTSTATUS
@@ -26999,11 +27059,17 @@ ConfigureOPMProtectedOutput(
 
 // rev
 /**
- * CreateDPIScaledDIBSection
+ * The CreateDPIScaledDIBSection routine creates a DIB with internal flag 0x10 and tracks the returned
+ * handle. The first six arguments follow CreateDIBSection; the seventh ABI slot is unused in the inspected
+ * bodies (x86 ret 28). Bits receives a pointer, not a scalar width.
  *
- * Creates a DIB with internal flag 0x10 and tracks the returned handle. The first six arguments
- * follow CreateDIBSection; the seventh ABI slot is unused in the inspected bodies (x86 ret 28).
- * Bits receives a pointer, not a scalar width.
+ * \param Hdc Device context handle.
+ * \param BitmapInfo Bitmap information.
+ * \param Usage Bitmap color-table usage.
+ * \param Bits Receives the bitmap bits.
+ * \param Section Section handle backing the DIB.
+ * \param Offset Offset into the section.
+ * \param Unused Historical argument ignored by this routine.
  */
 NTSYSAPI
 HBITMAP
@@ -27020,10 +27086,12 @@ CreateDPIScaledDIBSection(
 
 // rev
 /**
- * CreateOPMProtectedOutput
+ * The CreateOPMProtectedOutput routine is a direct client thunk to NtGdiCreateOPMProtectedOutput. Argument
+ * order and result are forwarded unchanged. Kernel-side behavior is not independently implemented by this
+ * client wrapper.
  *
- * Direct client thunk to NtGdiCreateOPMProtectedOutput. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param Parameters Parameters forwarded to the native routine.
+ * \param ProtectedOutput Protected output handle.
  */
 NTSYSAPI
 NTSTATUS
@@ -27035,10 +27103,15 @@ CreateOPMProtectedOutput(
 
 // rev
 /**
- * CreateOPMProtectedOutputs
+ * The CreateOPMProtectedOutputs routine is a direct client thunk to NtGdiCreateOPMProtectedOutputs. Argument
+ * order and result are forwarded unchanged. Kernel-side behavior is not independently implemented by this
+ * client wrapper.
  *
- * Direct client thunk to NtGdiCreateOPMProtectedOutputs. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param Param1 First native argument.
+ * \param Param2 Second native argument.
+ * \param ArraySize Receives or specifies the output array size.
+ * \param Param4 Fourth native argument.
+ * \param ProtectedOutputArray Receives protected output handles.
  */
 NTSYSAPI
 NTSTATUS
@@ -27053,11 +27126,15 @@ CreateOPMProtectedOutputs(
 
 // rev
 /**
- * CreateSessionMappedDIBSection
+ * The CreateSessionMappedDIBSection routine creates a session-mapped DIB from an existing non-NULL section.
+ * The wrapper supplies NULL for the ordinary Bits output and selects the session-mapped helper path. The
+ * return value is a bitmap handle, not a pixel pointer.
  *
- * Creates a session-mapped DIB from an existing non-NULL section. The wrapper supplies NULL for
- * the ordinary Bits output and selects the session-mapped helper path. The return value is a
- * bitmap handle, not a pixel pointer.
+ * \param Hdc Device context handle.
+ * \param BitmapInfo Bitmap information.
+ * \param Usage Bitmap color-table usage.
+ * \param Section Section handle backing the DIB.
+ * \param Offset Offset into the section.
  */
 NTSYSAPI
 HBITMAP
@@ -27072,10 +27149,10 @@ CreateSessionMappedDIBSection(
 
 // rev
 /**
- * CreateSystemThreads
+ * The CreateSystemThreads routine calls NtUserCreateSystemThreads and then returns zero regardless of native
+ * result. One historical client argument is ignored; this is not a success-reporting wrapper.
  *
- * Calls NtUserCreateSystemThreads and then returns zero regardless of native result. One
- * historical client argument is ignored; this is not a success-reporting wrapper.
+ * \param Unused Historical argument ignored by this routine.
  */
 NTSYSAPI
 LOGICAL
@@ -27099,10 +27176,14 @@ CtxInitUser32(
 
 // rev
 /**
- * DdCreateFullscreenSprite
+ * The DdCreateFullscreenSprite routine is a direct client thunk to NtGdiDdCreateFullscreenSprite. Argument
+ * order and result are forwarded unchanged. Kernel-side behavior is not independently implemented by this
+ * client wrapper.
  *
- * Direct client thunk to NtGdiDdCreateFullscreenSprite. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param hdc Device context handle.
+ * \param crKey Sprite color key.
+ * \param phSprite Receives the sprite handle.
+ * \param phdcSprite Receives the sprite device context.
  */
 NTSYSAPI
 NTSTATUS
@@ -27116,10 +27197,12 @@ DdCreateFullscreenSprite(
 
 // rev
 /**
- * DdDestroyFullscreenSprite
+ * The DdDestroyFullscreenSprite routine is a direct client thunk to NtGdiDdDestroyFullscreenSprite. Argument
+ * order and result are forwarded unchanged. Kernel-side behavior is not independently implemented by this
+ * client wrapper.
  *
- * Direct client thunk to NtGdiDdDestroyFullscreenSprite. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param hdc Device context handle.
+ * \param hSprite Sprite handle.
  */
 NTSYSAPI
 NTSTATUS
@@ -27131,11 +27214,12 @@ DdDestroyFullscreenSprite(
 
 // rev
 /**
- * DdNotifyFullscreenSpriteUpdate
+ * The DdNotifyFullscreenSpriteUpdate routine is a direct client thunk to
+ * NtGdiDdNotifyFullscreenSpriteUpdate. Argument order and result are forwarded unchanged. Kernel-side
+ * behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiDdNotifyFullscreenSpriteUpdate. Argument order and result are
- * forwarded unchanged. Kernel-side behavior is not independently implemented by this client
- * wrapper.
+ * \param hdc Device context handle.
+ * \param hSprite Sprite handle.
  */
 NTSYSAPI
 NTSTATUS
@@ -27161,10 +27245,11 @@ DdQueryVisRgnUniqueness(
 
 // rev
 /**
- * DestroyOPMProtectedOutput
+ * The DestroyOPMProtectedOutput routine is a direct client thunk to NtGdiDestroyOPMProtectedOutput. Argument
+ * order and result are forwarded unchanged. Kernel-side behavior is not independently implemented by this
+ * client wrapper.
  *
- * Direct client thunk to NtGdiDestroyOPMProtectedOutput. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param ProtectedOutput Protected output handle.
  */
 NTSYSAPI
 NTSTATUS
@@ -27175,10 +27260,10 @@ DestroyOPMProtectedOutput(
 
 // rev
 /**
- * DestroyReasons
+ * The DestroyReasons routine frees populated reason records and the USER-heap array, then clears Reasons and
+ * Count. Capacity is not reset. Empty cleanup has no defined Boolean result; use as a void destructor.
  *
- * Frees populated reason records and the USER-heap array, then clears Reasons and Count. Capacity
- * is not reset. Empty cleanup has no defined Boolean result; use as a void destructor.
+ * \param ReasonData Reason-array state to release.
  */
 NTSYSAPI
 VOID
@@ -27355,11 +27440,14 @@ EndFormPage(
 
 // rev
 /**
- * EudcLoadLinkW
+ * The EudcLoadLinkW routine loads an EUDC font link by forwarding counted names, Priority, FontLinkType and
+ * load=TRUE to NtGdiEudcLoadUnloadLink. Four arguments are consumed. This changes font-link state and is not
+ * a query.
  *
- * Loads an EUDC font link by forwarding counted names, Priority, FontLinkType and load=TRUE to
- * NtGdiEudcLoadUnloadLink. Four arguments are consumed. This changes font-link state and is not a
- * query.
+ * \param FaceName EUDC face name.
+ * \param FontFileName Font file name.
+ * \param Priority Font-link priority.
+ * \param FontLinkType Font-link type.
  */
 NTSYSAPI
 BOOL
@@ -27389,10 +27477,11 @@ EudcUnloadLinkW(
 
 // rev
 /**
- * FreeDDElParam
+ * The FreeDDElParam routine releases message-specific storage allocated by PackDDElParam or ReuseDDElParam.
+ * Msg must match the packed message kind; this does not release separately referenced payload objects.
  *
- * Releases message-specific storage allocated by PackDDElParam or ReuseDDElParam. Msg must match
- * the packed message kind; this does not release separately referenced payload objects.
+ * \param Msg DDE message identifier.
+ * \param LParam Packed DDE message parameter.
  */
 extern
 BOOL
@@ -27404,10 +27493,11 @@ FreeDDElParam(
 
 // rev
 /**
- * GetAppCompatFlags
+ * The GetAppCompatFlags routine reads current USER-thread compatibility flags, initializing thread state if
+ * needed. Two historical arguments are ignored but x86 still removes 8 bytes. Result is 32-bit flags.
  *
- * Reads current USER-thread compatibility flags, initializing thread state if needed. Two
- * historical arguments are ignored but x86 still removes 8 bytes. Result is 32-bit flags.
+ * \param Unused1 First historical argument ignored by this routine.
+ * \param Unused2 Second historical argument ignored by this routine.
  */
 NTSYSAPI
 ULONG
@@ -27434,11 +27524,13 @@ GetAppCompatFlags2(
 
 // rev
 /**
- * GetCOPPCompatibleOPMInformation
+ * The GetCOPPCompatibleOPMInformation routine is a direct client thunk to
+ * NtGdiGetCOPPCompatibleOPMInformation. Argument order and result are forwarded unchanged. Kernel-side
+ * behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiGetCOPPCompatibleOPMInformation. Argument order and result are
- * forwarded unchanged. Kernel-side behavior is not independently implemented by this client
- * wrapper.
+ * \param ProtectedOutput Protected output handle.
+ * \param Parameters Parameters forwarded to the native routine.
+ * \param RequestedInformation Receives requested OPM information.
  */
 NTSYSAPI
 NTSTATUS
@@ -27451,10 +27543,13 @@ GetCOPPCompatibleOPMInformation(
 
 // rev
 /**
- * GetCertificate
+ * The GetCertificate routine is a direct client thunk to NtGdiGetCertificate. Argument order and result are
+ * forwarded unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiGetCertificate. Argument order and result are forwarded unchanged.
- * Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param Hdc Device context handle.
+ * \param CertificateType Type of certificate requested.
+ * \param Certificate Receives certificate data.
+ * \param CertificateLength Receives or specifies the certificate length.
  */
 NTSYSAPI
 NTSTATUS
@@ -27468,10 +27563,14 @@ GetCertificate(
 
 // rev
 /**
- * GetCertificateByHandle
+ * The GetCertificateByHandle routine is a direct client thunk to NtGdiGetCertificateByHandle. Argument order
+ * and result are forwarded unchanged. Kernel-side behavior is not independently implemented by this client
+ * wrapper.
  *
- * Direct client thunk to NtGdiGetCertificateByHandle. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param ProtectedOutput Protected output handle.
+ * \param CertificateType Type of certificate requested.
+ * \param Certificate Receives certificate data.
+ * \param CertificateLength Receives or specifies the certificate length.
  */
 NTSYSAPI
 NTSTATUS
@@ -27485,10 +27584,13 @@ GetCertificateByHandle(
 
 // rev
 /**
- * GetCertificateSize
+ * The GetCertificateSize routine is a direct client thunk to NtGdiGetCertificateSize. Argument order and
+ * result are forwarded unchanged. Kernel-side behavior is not independently implemented by this client
+ * wrapper.
  *
- * Direct client thunk to NtGdiGetCertificateSize. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param Hdc Device context handle.
+ * \param CertificateType Type of certificate requested.
+ * \param CertificateLength Receives or specifies the certificate length.
  */
 NTSYSAPI
 NTSTATUS
@@ -27501,10 +27603,13 @@ GetCertificateSize(
 
 // rev
 /**
- * GetCertificateSizeByHandle
+ * The GetCertificateSizeByHandle routine is a direct client thunk to NtGdiGetCertificateSizeByHandle.
+ * Argument order and result are forwarded unchanged. Kernel-side behavior is not independently implemented
+ * by this client wrapper.
  *
- * Direct client thunk to NtGdiGetCertificateSizeByHandle. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param ProtectedOutput Protected output handle.
+ * \param CertificateType Type of certificate requested.
+ * \param CertificateLength Receives or specifies the certificate length.
  */
 NTSYSAPI
 LONG
@@ -27541,10 +27646,11 @@ GetCharABCWidthsFloatI(
 
 // rev
 /**
- * GetCharWidthInfo
+ * The GetCharWidthInfo routine is a direct client thunk to NtGdiGetCharWidthInfo. Argument order and result
+ * are forwarded unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiGetCharWidthInfo. Argument order and result are forwarded unchanged.
- * Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param hdc Device context handle.
+ * \param pChWidthInfo Receives character-width information.
  */
 NTSYSAPI
 BOOL
@@ -27556,11 +27662,12 @@ GetCharWidthInfo(
 
 // rev
 /**
- * GetCurrentDpiInfo
+ * The GetCurrentDpiInfo routine queries NtGdiGetCurrentDpiInfo and converts NTSTATUS to BOOL.
+ * STATUS_UNSUCCESSFUL maps to ERROR_INVALID_PARAMETER; STATUS_INVALID_PARAMETER maps to
+ * ERROR_INVALID_HANDLE. Other failures need not replace last error.
  *
- * Queries NtGdiGetCurrentDpiInfo and converts NTSTATUS to BOOL. STATUS_UNSUCCESSFUL maps to
- * ERROR_INVALID_PARAMETER; STATUS_INVALID_PARAMETER maps to ERROR_INVALID_HANDLE. Other failures
- * need not replace last error.
+ * \param Monitor Monitor handle.
+ * \param DpiInformation Receives DPI information.
  */
 NTSYSAPI
 BOOL
@@ -27658,10 +27765,13 @@ GetInputLocaleInfo(
 
 // rev
 /**
- * GetOPMInformation
+ * The GetOPMInformation routine is a direct client thunk to NtGdiGetOPMInformation. Argument order and
+ * result are forwarded unchanged. Kernel-side behavior is not independently implemented by this client
+ * wrapper.
  *
- * Direct client thunk to NtGdiGetOPMInformation. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param ProtectedOutput Protected output handle.
+ * \param Parameters Parameters forwarded to the native routine.
+ * \param RequestedInformation Receives requested OPM information.
  */
 NTSYSAPI
 NTSTATUS
@@ -27674,10 +27784,12 @@ GetOPMInformation(
 
 // rev
 /**
- * GetOPMRandomNumber
+ * The GetOPMRandomNumber routine is a direct client thunk to NtGdiGetOPMRandomNumber. Argument order and
+ * result are forwarded unchanged. Kernel-side behavior is not independently implemented by this client
+ * wrapper.
  *
- * Direct client thunk to NtGdiGetOPMRandomNumber. Argument order and result are forwarded
- * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param ProtectedOutput Protected output handle.
+ * \param RandomNumber Receives the OPM random number.
  */
 NTSYSAPI
 NTSTATUS
@@ -27741,10 +27853,11 @@ GetReasonTitleFromReasonCode(
 
 // rev
 /**
- * GetRelAbs
+ * The GetRelAbs routine reads DC relative/absolute setting using native DC DWORD selector 1. The second ABI
+ * slot is unused, but x86 removes 8 bytes. Returns zero on query failure.
  *
- * Reads DC relative/absolute setting using native DC DWORD selector 1. The second ABI slot is
- * unused, but x86 removes 8 bytes. Returns zero on query failure.
+ * \param Hdc Device context handle.
+ * \param Unused Historical argument ignored by this routine.
  */
 NTSYSAPI
 INT
@@ -27756,11 +27869,12 @@ GetRelAbs(
 
 // rev
 /**
- * GetSuggestedOPMProtectedOutputArraySize
+ * The GetSuggestedOPMProtectedOutputArraySize routine direct client thunk to
+ * NtGdiGetSuggestedOPMProtectedOutputArraySize. Argument order and result are forwarded unchanged.
+ * Kernel-side behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiGetSuggestedOPMProtectedOutputArraySize. Argument order and result
- * are forwarded unchanged. Kernel-side behavior is not independently implemented by this client
- * wrapper.
+ * \param Hdc Device context handle.
+ * \param ArraySize Receives or specifies the output array size.
  */
 NTSYSAPI
 NTSTATUS
@@ -27818,10 +27932,12 @@ GetTextFaceAliasW(
 
 // rev
 /**
- * GetTransform
+ * The GetTransform routine is a direct client thunk to NtGdiGetTransform. Argument order and result are
+ * forwarded unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiGetTransform. Argument order and result are forwarded unchanged.
- * Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param hdc Device context handle.
+ * \param iXform Transform selector.
+ * \param pxf Receives the transform.
  */
 NTSYSAPI
 BOOL
@@ -27833,12 +27949,13 @@ GetTransform(
     );
 
 /**
- * HMValidateHandleNoRip
+ * The HMValidateHandleNoRip routine is an internal nonexported USER32 validator: x86 uses fastcall with
+ * Handle/Type in ECX/EDX and returns a 64-bit client address in EDX:EAX. The result is borrowed, not an
+ * allocation or necessarily an x86-dereferenceable pointer. Type is fixed/ignored in inspected NoSecure and
+ * Shared bodies; Descriptor is unused in the inspected WithDescriptor body.
  *
- * Internal nonexported USER32 validator: x86 uses fastcall with Handle/Type in ECX/EDX and returns
- * a 64-bit client address in EDX:EAX. The result is borrowed, not an allocation or necessarily an
- * x86-dereferenceable pointer. Type is fixed/ignored in inspected NoSecure and Shared bodies;
- * Descriptor is unused in the inspected WithDescriptor body.
+ * \param Handle Handle to validate.
+ * \param Type Expected handle type.
  */
 NTSYSAPI
 ULONG64
@@ -27849,12 +27966,13 @@ HMValidateHandleNoRip(
     );
 
 /**
- * HMValidateHandleNoSecure
+ * The HMValidateHandleNoSecure routine is an internal nonexported USER32 validator: x86 uses fastcall with
+ * Handle/Type in ECX/EDX and returns a 64-bit client address in EDX:EAX. The result is borrowed, not an
+ * allocation or necessarily an x86-dereferenceable pointer. Type is fixed/ignored in inspected NoSecure and
+ * Shared bodies; Descriptor is unused in the inspected WithDescriptor body.
  *
- * Internal nonexported USER32 validator: x86 uses fastcall with Handle/Type in ECX/EDX and returns
- * a 64-bit client address in EDX:EAX. The result is borrowed, not an allocation or necessarily an
- * x86-dereferenceable pointer. Type is fixed/ignored in inspected NoSecure and Shared bodies;
- * Descriptor is unused in the inspected WithDescriptor body.
+ * \param Handle Handle to validate.
+ * \param Type Expected handle type.
  */
 NTSYSAPI
 ULONG64
@@ -27865,12 +27983,14 @@ HMValidateHandleNoSecure(
     );
 
 /**
- * HMValidateHandleWithDescriptor
+ * The HMValidateHandleWithDescriptor routine is an internal nonexported USER32 validator: x86 uses fastcall
+ * with Handle/Type in ECX/EDX and returns a 64-bit client address in EDX:EAX. The result is borrowed, not an
+ * allocation or necessarily an x86-dereferenceable pointer. Type is fixed/ignored in inspected NoSecure and
+ * Shared bodies; Descriptor is unused in the inspected WithDescriptor body.
  *
- * Internal nonexported USER32 validator: x86 uses fastcall with Handle/Type in ECX/EDX and returns
- * a 64-bit client address in EDX:EAX. The result is borrowed, not an allocation or necessarily an
- * x86-dereferenceable pointer. Type is fixed/ignored in inspected NoSecure and Shared bodies;
- * Descriptor is unused in the inspected WithDescriptor body.
+ * \param Handle Handle to validate.
+ * \param Type Expected handle type.
+ * \param Descriptor Handle descriptor used for validation.
  */
 NTSYSAPI
 ULONG64
@@ -27882,12 +28002,13 @@ HMValidateHandleWithDescriptor(
     );
 
 /**
- * HMValidateSharedHandle
+ * The HMValidateSharedHandle routine is an internal nonexported USER32 validator: x86 uses fastcall with
+ * Handle/Type in ECX/EDX and returns a 64-bit client address in EDX:EAX. The result is borrowed, not an
+ * allocation or necessarily an x86-dereferenceable pointer. Type is fixed/ignored in inspected NoSecure and
+ * Shared bodies; Descriptor is unused in the inspected WithDescriptor body.
  *
- * Internal nonexported USER32 validator: x86 uses fastcall with Handle/Type in ECX/EDX and returns
- * a 64-bit client address in EDX:EAX. The result is borrowed, not an allocation or necessarily an
- * x86-dereferenceable pointer. Type is fixed/ignored in inspected NoSecure and Shared bodies;
- * Descriptor is unused in the inspected WithDescriptor body.
+ * \param Handle Handle to validate.
+ * \param Type Expected handle type.
  */
 NTSYSAPI
 ULONG64
@@ -28010,11 +28131,15 @@ InjectMouseInput(
 
 // rev
 /**
- * InputSpaceRegionFromPoint
+ * The InputSpaceRegionFromPoint routine is a direct client thunk to NtInputSpaceRegionFromPoint with five
+ * unchanged arguments (x86 ret 20). The first argument is not a by-value POINT. The native declaration
+ * remains the contract reference; complete input-space and transform semantics are not established here.
  *
- * Direct client thunk to NtInputSpaceRegionFromPoint with five unchanged arguments (x86 ret 20).
- * The first argument is not a by-value POINT. The native declaration remains the contract
- * reference; complete input-space and transform semantics are not established here.
+ * \param InputSpaceLuid Input-space identifier.
+ * \param Point Point to map.
+ * \param Region Receives the region for the point.
+ * \param Param4 Fourth native argument.
+ * \param Param5 Fifth native argument.
  */
 NTSYSAPI
 LOGICAL
@@ -28182,11 +28307,17 @@ LpkExtTextOut(
 
 // rev
 /**
- * LpkGetCharacterPlacement
+ * The LpkGetCharacterPlacement routine shapes text into GCP_RESULTSW arrays and returns packed dimensions.
+ * The seventh historical ABI argument is unused in the inspected body; x86 consumes 28 bytes. Nested output
+ * arrays are caller-owned.
  *
- * Shapes text into GCP_RESULTSW arrays and returns packed dimensions. The seventh historical ABI
- * argument is unused in the inspected body; x86 consumes 28 bytes. Nested output arrays are
- * caller-owned.
+ * \param Hdc Device context handle.
+ * \param String Text string.
+ * \param Count Number of characters in String.
+ * \param MaxExtent Maximum permitted text extent.
+ * \param Results Receives character-placement results.
+ * \param Flags Operation flags.
+ * \param Unused Historical argument ignored by this routine.
  */
 NTSYSAPI
 DWORD
@@ -28246,10 +28377,10 @@ LpkGetTextExtentExPoint(
 
 // rev
 /**
- * LpkInitialize
+ * The LpkInitialize routine initializes language-pack font-cache synchronization and state. One historical
+ * ABI argument is unused; do not repeatedly call this as a status query.
  *
- * Initializes language-pack font-cache synchronization and state. One historical ABI argument is
- * unused; do not repeatedly call this as a status query.
+ * \param Unused1 First historical argument ignored by this routine.
  */
 NTSYSAPI
 BOOL
@@ -28366,13 +28497,18 @@ LpkpInitializeEditControl(
 
 // rev
 /**
- * MBToWCSEx
+ * The MBToWCSEx routine converts into caller storage when Allocate is zero, otherwise allocates from the
+ * USER heap. Returns a 32-bit destination character count for wide output or byte count for multibyte
+ * output. Allocation-mode failure can free storage without clearing the output slot; never claim ownership
+ * from a failed call. Source length -1 includes NUL, -2 excludes it. Destination capacity -1 requires
+ * allocation.
  *
- * Converts into caller storage when Allocate is zero, otherwise allocates from the USER heap.
- * Returns a 32-bit destination character count for wide output or byte count for multibyte output.
- * Allocation-mode failure can free storage without clearing the output slot; never claim ownership
- * from a failed call. Source length -1 includes NUL, -2 excludes it. Destination capacity -1
- * requires allocation.
+ * \param CodePage Code page for conversion.
+ * \param MultiByteString Multibyte source or destination text.
+ * \param BytesInMultiByteString Length of multibyte text in bytes.
+ * \param UnicodeString Unicode source or destination text.
+ * \param CharsInUnicodeString Length or capacity of Unicode text in characters.
+ * \param Allocate Whether to allocate destination storage.
  */
 NTSYSAPI
 ULONG
@@ -28388,13 +28524,17 @@ MBToWCSEx(
 
 // rev
 /**
- * MBToWCSExt
+ * The MBToWCSExt routine converts into caller storage when Allocate is zero, otherwise allocates from the
+ * USER heap. Returns a 32-bit destination character count for wide output or byte count for multibyte
+ * output. Allocation-mode failure can free storage without clearing the output slot; never claim ownership
+ * from a failed call. Uses the process ANSI code page. Source length -1 includes NUL, -2 excludes it.
+ * Destination capacity -1 requires allocation.
  *
- * Converts into caller storage when Allocate is zero, otherwise allocates from the USER heap.
- * Returns a 32-bit destination character count for wide output or byte count for multibyte output.
- * Allocation-mode failure can free storage without clearing the output slot; never claim ownership
- * from a failed call. Uses the process ANSI code page. Source length -1 includes NUL, -2 excludes
- * it. Destination capacity -1 requires allocation.
+ * \param MultiByteString Multibyte source or destination text.
+ * \param BytesInMultiByteString Length of multibyte text in bytes.
+ * \param UnicodeString Unicode source or destination text.
+ * \param CharsInUnicodeString Length or capacity of Unicode text in characters.
+ * \param Allocate Whether to allocate destination storage.
  */
 NTSYSAPI
 ULONG
@@ -28506,10 +28646,13 @@ MapVisualRelativePoints(
 
 // rev
 /**
- * ModerncoreCreateICW
+ * The ModerncoreCreateICW routine is a legacy information-context entry that is a constant-NULL stub on the
+ * inspected build. Four historical ABI slots remain; their original meanings are not established.
  *
- * Legacy information-context entry is a constant-NULL stub on the inspected build. Four historical
- * ABI slots remain; their original meanings are not established.
+ * \param Unused1 First historical argument ignored by this routine.
+ * \param Unused2 Second historical argument ignored by this routine.
+ * \param Unused3 Third historical argument ignored by this routine.
+ * \param Unused4 Fourth historical argument ignored by this routine.
  */
 NTSYSAPI
 HDC
@@ -28660,23 +28803,21 @@ NtKSTWait(
 
 // rev
 /**
- * The NtMapVisualRelativePoints routine maps coordinates relative to composition visuals.
+ * The NtMapVisualRelativePoints routine maps coordinates relative to composition visuals. It is
+ * reached by MapVisualRelativePoints with seven unchanged arguments, including an in-place Points
+ * array. x86 consumes 28 argument bytes. Full visual ownership and coordinate semantics are not
+ * established by this entry review.
  *
- * \param SourceVisual A pointer to the source visual.
- * \param TargetVisual A pointer to the target visual.
- * \param PointCount The count of points to map.
- * \param SourcePoints A pointer or address to source points.
- * \param TargetPoints A pointer receiving mapped target points.
+ * \param SourceVisual Source composition visual.
+ * \param TargetVisual Target composition visual.
+ * \param PointCount Number of points in Points.
+ * \param Points Array of points updated in place.
+ * \param SourceDpi Source DPI value.
+ * \param TargetDpi Target DPI value.
+ * \param Flags Mapping flags.
  * \returns LOGICAL Non-zero on success, zero otherwise.
  */
 _Kernel_entry_
-/**
- * NtMapVisualRelativePoints
- *
- * Native mapping entry reached by MapVisualRelativePoints with seven unchanged arguments,
- * including an in-place Points array. x86 consumes 28 argument bytes. Full visual ownership and
- * coordinate semantics are not established by this entry review.
- */
 NTSYSCALLAPI
 LOGICAL
 NTAPI
@@ -32530,11 +32671,13 @@ NtVisualCaptureBits(
 
 // rev
 /**
- * PackDDElParam
+ * The PackDDElParam routine packs two pointer-sized DDE message values. The message selector is UINT and
+ * payloads are UINT_PTR, matching the SDK. The message determines whether storage is allocated; release
+ * through FreeDDElParam.
  *
- * Packs two pointer-sized DDE message values. The message selector is UINT and payloads are
- * UINT_PTR, matching the SDK. The message determines whether storage is allocated; release through
- * FreeDDElParam.
+ * \param Msg DDE message identifier.
+ * \param UiLo Low DDE value.
+ * \param UiHi High DDE value.
  */
 extern
 LPARAM
@@ -32756,11 +32899,15 @@ RemoveVisualIdentifier(
 
 // rev
 /**
- * ReuseDDElParam
+ * The ReuseDDElParam routine reuses DDE parameter storage for a new message/value pair, freeing or
+ * allocating message- specific storage when required. Use only a parameter produced for MsgIn; free the
+ * resulting parameter with MsgOut.
  *
- * Reuses DDE parameter storage for a new message/value pair, freeing or allocating message-
- * specific storage when required. Use only a parameter produced for MsgIn; free the resulting
- * parameter with MsgOut.
+ * \param LParam Packed DDE message parameter.
+ * \param MsgIn Original DDE message identifier.
+ * \param MsgOut New DDE message identifier.
+ * \param UiLo Low DDE value.
+ * \param UiHi High DDE value.
  */
 extern
 LPARAM
@@ -32775,10 +32922,11 @@ ReuseDDElParam(
 
 // rev
 /**
- * ScaleRgn
+ * The ScaleRgn routine is a direct client thunk to NtGdiScaleRgn. Argument order and result are forwarded
+ * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiScaleRgn. Argument order and result are forwarded unchanged. Kernel-
- * side behavior is not independently implemented by this client wrapper.
+ * \param hdc Device context handle.
+ * \param hrgn Region handle to scale.
  */
 NTSYSAPI
 BOOL
@@ -32790,10 +32938,12 @@ ScaleRgn(
 
 // rev
 /**
- * ScaleValues
+ * The ScaleValues routine is a direct client thunk to NtGdiScaleValues. Argument order and result are
+ * forwarded unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiScaleValues. Argument order and result are forwarded unchanged.
- * Kernel-side behavior is not independently implemented by this client wrapper.
+ * \param hdc Device context handle.
+ * \param pl Values to scale.
+ * \param cl Number of values to scale.
  */
 NTSYSAPI
 BOOL
@@ -32863,11 +33013,12 @@ SetLayoutWidth(
     
 // rev
 /**
- * SetOPMSigningKeyAndSequenceNumbers
+ * The SetOPMSigningKeyAndSequenceNumbers routine direct client thunk to
+ * NtGdiSetOPMSigningKeyAndSequenceNumbers. Argument order and result are forwarded unchanged. Kernel-side
+ * behavior is not independently implemented by this client wrapper.
  *
- * Direct client thunk to NtGdiSetOPMSigningKeyAndSequenceNumbers. Argument order and result are
- * forwarded unchanged. Kernel-side behavior is not independently implemented by this client
- * wrapper.
+ * \param ProtectedOutput Protected output handle.
+ * \param Parameters Parameters forwarded to the native routine.
  */
 NTSYSAPI
 NTSTATUS
@@ -32985,10 +33136,14 @@ SetUserObjectCapability(
 
 // rev
 /**
- * SetVirtualResolution
- *
- * Direct client thunk to NtGdiSetVirtualResolution. Argument order and result are forwarded
+ * The SetVirtualResolution routine is a direct client thunk to NtGdiSetVirtualResolution. Argument order and result are forwarded
  * unchanged. Kernel-side behavior is not independently implemented by this client wrapper.
+ *
+ * \param hdc Device context handle.
+ * \param cxVirtualDevicePixel Virtual device width in pixels.
+ * \param cyVirtualDevicePixel Virtual device height in pixels.
+ * \param cxVirtualDeviceMm Virtual device width in millimeters.
+ * \param cyVirtualDeviceMm Virtual device height in millimeters.
  */
 NTSYSAPI
 BOOL
@@ -33069,10 +33224,10 @@ SignalRedirectionStartComplete(
 
 // rev
 /**
- * StartFormPage
+ * The StartFormPage routine forwards to StartPage for a printer DC. Takes one HDC and returns the signed
+ * page result; this begins output, not a no-argument query.
  *
- * Forwards to StartPage for a printer DC. Takes one HDC and returns the signed page result; this
- * begins output, not a no-argument query.
+ * \param Hdc Device context handle.
  */
 NTSYSAPI
 INT
@@ -33083,10 +33238,13 @@ StartFormPage(
 
 // rev
 /**
- * UnpackDDElParam
+ * The UnpackDDElParam routine unpacks pointer-sized DDE values into two output slots. Both outputs are
+ * PUINT_PTR and written by the routine, not input pointers. No ownership is transferred by unpacking.
  *
- * Unpacks pointer-sized DDE values into two output slots. Both outputs are PUINT_PTR and written
- * by the routine, not input pointers. No ownership is transferred by unpacking.
+ * \param Msg DDE message identifier.
+ * \param LParam Packed DDE message parameter.
+ * \param PuiLo Receives the low DDE value.
+ * \param PuiHi Receives the high DDE value.
  */
 extern
 BOOL
@@ -33187,12 +33345,23 @@ UserLpkPSMTextOut(
 
 // rev
 /**
- * UserLpkTabbedTextOut
+ * The UserLpkTabbedTextOut routine measures tab-separated text and optionally draws it.
+ * AverageCharacterWidth supplies the default 8-character tab interval; CharacterHeight supplies empty-run
+ * height. Returns packed width/height. Twelve ABI slots, with the last unused, not eleven pointer-valued
+ * formatting arguments.
  *
- * Measures tab-separated text and optionally draws it. AverageCharacterWidth supplies the default
- * 8-character tab interval; CharacterHeight supplies empty-run height. Returns packed
- * width/height. Twelve ABI slots, with the last unused, not eleven pointer-valued formatting
- * arguments.
+ * \param Hdc Device context handle.
+ * \param X Horizontal position.
+ * \param Y Vertical position.
+ * \param String Text string.
+ * \param Count Number of characters in String.
+ * \param TabPositionsCount Number of tab positions.
+ * \param TabPositions Optional tab-stop positions.
+ * \param TabOrigin Origin for tab positions.
+ * \param Draw Whether to draw the text.
+ * \param AverageCharacterWidth Average character width for default tab stops.
+ * \param CharacterHeight Character height.
+ * \param Unused Historical argument ignored by this routine.
  */
 NTSYSAPI
 LONG
@@ -33229,10 +33398,11 @@ UserRealizePalette(
 
 // rev
 /**
- * UserRegisterWowHandlers
+ * The UserRegisterWowHandlers routine is a legacy registration entry that returns STATUS_ACCESS_DENIED
+ * without registering handlers on the inspected build. Two historical ABI slots are unused.
  *
- * Legacy registration entry returns STATUS_ACCESS_DENIED without registering handlers on the
- * inspected build. Two historical ABI slots are unused.
+ * \param Unused1 First historical argument ignored by this routine.
+ * \param Unused2 Second historical argument ignored by this routine.
  */
 NTSYSAPI
 NTSTATUS
@@ -33244,11 +33414,12 @@ UserRegisterWowHandlers(
 
 // rev
 /**
- * UspAllocCache
+ * The UspAllocCache routine allocates Size bytes from the language-pack heap; release with UspFreeMem.
+ * Negative signed 32-bit sizes or a NULL output slot return E_INVALIDARG (0x80070057); success is S_OK.
+ * Invalid-argument rejection preserves a supplied output slot.
  *
- * Allocates Size bytes from the language-pack heap; release with UspFreeMem. Negative signed
- * 32-bit sizes or a NULL output slot return E_INVALIDARG (0x80070057); success is S_OK. Invalid-
- * argument rejection preserves a supplied output slot.
+ * \param Size Number of bytes to allocate.
+ * \param Buffer Receives the allocated buffer.
  */
 NTSYSAPI
 HRESULT
@@ -33332,13 +33503,18 @@ VTagOutput(
 
 // rev
 /**
- * WCSToMBEx
+ * The WCSToMBEx routine converts into caller storage when Allocate is zero, otherwise allocates from the
+ * USER heap. Returns a 32-bit destination character count for wide output or byte count for multibyte
+ * output. Allocation-mode failure can free storage without clearing the output slot; never claim ownership
+ * from a failed call. Source length -1 includes NUL; values below -1 fail. MbSize is signed and -1 requires
+ * allocation.
  *
- * Converts into caller storage when Allocate is zero, otherwise allocates from the USER heap.
- * Returns a 32-bit destination character count for wide output or byte count for multibyte output.
- * Allocation-mode failure can free storage without clearing the output slot; never claim ownership
- * from a failed call. Source length -1 includes NUL; values below -1 fail. MbSize is signed and -1
- * requires allocation.
+ * \param CodePage Code page for conversion.
+ * \param UnicodeString Unicode source or destination text.
+ * \param CharsInUnicodeString Length or capacity of Unicode text in characters.
+ * \param MultiByteString Multibyte source or destination text.
+ * \param MbSize Multibyte destination capacity in bytes.
+ * \param Allocate Whether to allocate destination storage.
  */
 NTSYSAPI
 ULONG
@@ -33537,11 +33713,12 @@ pldcGet(
     VOID
     );
 /**
- * vSetPldc
+ * The vSetPldc routine associates a local-DC record with validated client attributes. If LocalDc is
+ * non-NULL, also writes Hdc into its first pointer-sized field even when lookup fails. No defined success
+ * return. LocalDc is a record, not a pointer-to-pointer.
  *
- * Associates a local-DC record with validated client attributes. If LocalDc is non-NULL, also
- * writes Hdc into its first pointer-sized field even when lookup fails. No defined success return.
- * LocalDc is a record, not a pointer-to-pointer.
+ * \param Hdc Device context handle.
+ * \param LocalDc Local device-context record to associate.
  */
 NTSYSAPI
 VOID
